@@ -157,8 +157,45 @@ def scatter_all_attributes(drivers, attributes):
             plt.savefig(f"{attribute_name}_vs_{second_attribute_name}.png")
             plt.clf()
 
+def create_tree(drivers, attributes, depth):
+    for attribute in attributes:
+        sorted_drivers = sorted(drivers, key=lambda single_driver: single_driver[attribute])
+
+        multi_value_attributes = ['Speed', 'NLaneChanges', 'Brightness', 'NumDoors']
+
+        if multi_value_attributes.__contains__(attribute):
+            best_speed_threshold = find_best_threshold(sorted_drivers, attribute)
+
+            print(f"{attribute} mistakes: {best_speed_threshold.badness}")
+        else:   # most attributes only have values of 1 or 0
+            left_data = list(filter(lambda driver: driver[attribute] == 0, drivers))
+            right_data = list(filter(lambda driver: driver[attribute] == 1, drivers))
+
+            # calculate if aggressive drivers are the majority group in the left data
+            aggressive_drivers_in_left_data = sum(driver['INTENT'] == 2 for driver in left_data)
+            left_is_aggressive = aggressive_drivers_in_left_data > len(left_data) - aggressive_drivers_in_left_data
+
+            # track number of false alarms and misses at this threshold
+            false_alarms = 0
+            misses = 0
+
+            if left_is_aggressive:  # aggressive drivers are majority group in left data
+                # calculate number of false alarms in left group and misses in right group at this threshold
+                false_alarms = sum(driver['INTENT'] < 2 for driver in left_data)
+                misses = sum(driver['INTENT'] == 2 for driver in right_data)
+            else:  # aggressive drivers are majority group in right data
+                # calculate number of false alarms in right group and misses in left group at this threshold
+                false_alarms = sum(driver['INTENT'] < 2 for driver in right_data)
+                misses = sum(driver['INTENT'] == 2 for driver in left_data)
+
+            badness = false_alarms + misses
+
+            print(f"{attribute} mistakes: {badness}")
+
 def main():
     drivers, attributes = read_all_files_in_project()
+    best_attributes = ['Speed', 'BumperDamage', 'BumperStickers', 'HasGlasses', 'RoofRack',
+                       'SideDents', 'Wears_Hat']  # decided using scatter plots
 
     safe_drivers = []
     aggressive_drivers = []
@@ -178,20 +215,15 @@ def main():
     print(f"safe: {len(safe_drivers)}")
     print(f"agg: {len(aggressive_drivers)}")
 
-    # TODO: replace these placeholder values with real threshold range
-    min_threshold = 0
-    max_threshold = 10
+    drivers = safe_drivers + aggressive_drivers
 
-    sorted_drivers = sorted(drivers, key=lambda single_driver: single_driver['Speed'])
-    best_speed_threshold = find_best_threshold(sorted_drivers, 'Speed')
-    best_threshold = best_speed_threshold
-    best_attribute = "Speed"
-    make_classifier(best_threshold, best_attribute)
+    print(f"drivers: {len(drivers)}")
+
+    create_tree(drivers, attributes[:-1], 0)
+
+    # make_classifier(best_threshold, best_attribute)
 
     # scatter_all_attributes(drivers, attributes)
-
-    # for attribute in attributes:
-    #     sorted_drivers = sorted(drivers, key=lambda single_driver: single_driver[attribute])
 
 if __name__ == '__main__':
     main()
