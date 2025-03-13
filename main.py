@@ -158,15 +158,26 @@ def scatter_all_attributes(drivers, attributes):
             plt.clf()
 
 def create_tree(drivers, attributes, depth):
+    best_threshold = None
+    best_attribute = ''
+    best_left_data = []
+    best_right_data = []
+
     for attribute in attributes:
         sorted_drivers = sorted(drivers, key=lambda single_driver: single_driver[attribute])
 
         multi_value_attributes = ['Speed', 'NLaneChanges', 'Brightness', 'NumDoors']
 
         if multi_value_attributes.__contains__(attribute):
-            best_speed_threshold = find_best_threshold(sorted_drivers, attribute)
+            threshold_information = find_best_threshold(sorted_drivers, attribute)
 
-            print(f"{attribute} mistakes: {best_speed_threshold.badness}")
+            if best_threshold is None or threshold_information.badness < best_threshold.badness:
+                best_threshold = threshold_information
+                best_attribute = attribute
+                best_left_data = list(filter(lambda driver: driver[attribute] <= threshold_information.threshold,
+                                        drivers))
+                best_right_data = list(filter(lambda driver: driver[attribute] > threshold_information.threshold,
+                                        drivers))
         else:   # most attributes only have values of 1 or 0
             left_data = list(filter(lambda driver: driver[attribute] == 0, drivers))
             right_data = list(filter(lambda driver: driver[attribute] == 1, drivers))
@@ -189,13 +200,20 @@ def create_tree(drivers, attributes, depth):
                 misses = sum(driver['INTENT'] == 2 for driver in left_data)
 
             badness = false_alarms + misses
+            threshold_information = Threshold_Information(badness, left_is_aggressive, 0)
 
-            print(f"{attribute} mistakes: {badness}")
+            if best_threshold is None or badness < best_threshold.badness:
+                best_threshold = threshold_information
+                best_attribute = attribute
+                best_left_data = left_data
+                best_right_data = right_data
+
+    return best_threshold, best_attribute
 
 def main():
     drivers, attributes = read_all_files_in_project()
-    best_attributes = ['Speed', 'BumperDamage', 'BumperStickers', 'HasGlasses', 'RoofRack',
-                       'SideDents', 'Wears_Hat']  # decided using scatter plots
+    best_attributes = ['Speed', 'BumperDamage', 'HasGlasses', 'RoofRack',
+                       'SideDents', 'Wears_Hat', 'Brightness', 'NLaneChanges']  # decided using scatter plots
 
     safe_drivers = []
     aggressive_drivers = []
@@ -212,14 +230,11 @@ def main():
     for index in range(len(safe_drivers) - len(aggressive_drivers)):
         safe_drivers.pop(random.randrange(len(safe_drivers)))
 
-    print(f"safe: {len(safe_drivers)}")
-    print(f"agg: {len(aggressive_drivers)}")
-
     drivers = safe_drivers + aggressive_drivers
 
-    print(f"drivers: {len(drivers)}")
-
-    create_tree(drivers, attributes[:-1], 0)
+    best_threshold, best_attribute = create_tree(drivers, attributes[:-1], 0)
+    print(f"Best attribute: {best_attribute}")
+    print(f"Best threshold: {best_threshold.threshold}")
 
     # make_classifier(best_threshold, best_attribute)
 
