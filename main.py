@@ -1,3 +1,4 @@
+import copy
 import os
 import re
 import numpy as np
@@ -10,10 +11,17 @@ import seaborn as sns
 # Defines a Threshold_Information object which stores the best threshold for a particular attribute, as well as the threshold's
 # badness and whether aggressive drivers are the majority class in the left group of data
 class Threshold_Information:
-    def __init__(self, badness, left_is_aggressive_flag, threshold):
+    def __init__(self, badness, left_is_aggressive_flag, threshold, attribute):
         self.badness = badness
         self.left_is_aggressive_flag = left_is_aggressive_flag
         self.threshold = threshold
+        self.attribute = attribute
+
+class Node:
+    def __init__(self, threshold_information, left, right):
+        self.threshold_information = threshold_information
+        self.left = left
+        self.right = right
 
 def read_file(fileName):
     drivers = []
@@ -112,7 +120,7 @@ def find_best_threshold(drivers, attribute):
             left_is_aggressive_flag = left_is_aggressive
             least_badness_threshold = threshold
 
-    return Threshold_Information(least_badness, left_is_aggressive_flag, least_badness_threshold)
+    return Threshold_Information(least_badness, left_is_aggressive_flag, least_badness_threshold, attribute)
 
 def make_classifier(threshold_information, best_attribute):
     classifer_program = """
@@ -158,8 +166,14 @@ def scatter_all_attributes(drivers, attributes):
             plt.clf()
 
 def create_tree(drivers, attributes, depth):
+    # TODO: implement stopping condition
+    if depth > 8 or len(drivers) == 0:
+        return None
+    fraction_aggressive = sum(driver['INTENT'] == 2 for driver in drivers)/len(drivers)
+    if fraction_aggressive >= 0.9 or fraction_aggressive <= 0.1:
+        return None
+
     best_threshold = None
-    best_attribute = ''
     best_left_data = []
     best_right_data = []
 
@@ -173,7 +187,6 @@ def create_tree(drivers, attributes, depth):
 
             if best_threshold is None or threshold_information.badness < best_threshold.badness:
                 best_threshold = threshold_information
-                best_attribute = attribute
                 best_left_data = list(filter(lambda driver: driver[attribute] <= threshold_information.threshold,
                                         drivers))
                 best_right_data = list(filter(lambda driver: driver[attribute] > threshold_information.threshold,
@@ -200,15 +213,21 @@ def create_tree(drivers, attributes, depth):
                 misses = sum(driver['INTENT'] == 2 for driver in left_data)
 
             badness = false_alarms + misses
-            threshold_information = Threshold_Information(badness, left_is_aggressive, 0)
+            threshold_information = Threshold_Information(badness, left_is_aggressive, 0, attribute)
 
             if best_threshold is None or badness < best_threshold.badness:
                 best_threshold = threshold_information
-                best_attribute = attribute
                 best_left_data = left_data
                 best_right_data = right_data
 
-    return best_threshold, best_attribute
+    attributes.remove(best_threshold.attribute)
+    copied_attributes = copy.deepcopy(attributes)
+
+    left_node = create_tree(best_left_data, copied_attributes, depth + 1)
+    right_node = create_tree(best_right_data, copied_attributes, depth + 1)
+    parent_node = Node(best_threshold, left_node, right_node)
+
+    return parent_node
 
 def main():
     drivers, attributes = read_all_files_in_project()
@@ -232,9 +251,8 @@ def main():
 
     drivers = safe_drivers + aggressive_drivers
 
-    best_threshold, best_attribute = create_tree(drivers, attributes[:-1], 0)
-    print(f"Best attribute: {best_attribute}")
-    print(f"Best threshold: {best_threshold.threshold}")
+    decision_tree = create_tree(drivers, attributes[:-1], 0)
+    test = 1
 
     # make_classifier(best_threshold, best_attribute)
 
