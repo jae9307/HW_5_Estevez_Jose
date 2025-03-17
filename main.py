@@ -68,18 +68,28 @@ def read_all_files_in_project(start_path='.'):
 
     return drivers, attributes
 
+# Recursive function which finds the last index in the array of drivers which has a value <= the threshold value for a specific
+# attribute. Starts by checking the value at the middle index of the array. If the value is > threshold, the function is called
+# again, this time checking at the index in the middle of the group of values to the left of the current index. If the value
+# is <= threshold, the function is called again checking at the index in middle of the group of values to the right of the current
+# index. The function recursively calls itself in this way until the last instance (index wise) of a value <= the threshold is
+# found.
 def find_threshold_index(index, drivers, threshold, current_best_index, attribute):
     if drivers[index][attribute] > threshold:
-        if index == 0:
+        if index == 0:  # if first element after the previous midpoint is greater than threshold, then the previous midpoint must be the best
             return current_best_index
         return find_threshold_index(math.ceil(drivers[:index].__len__() / 2) - 1, drivers[:index], threshold,
                                     current_best_index, attribute)
     else:
-        if drivers.__len__()-1 == index:
-            return index + 1 + current_best_index
+        if drivers.__len__()-1 == index:  # only happens when there is only driver left (length of drivers is 1)
+            return index + 1 + current_best_index  # since the current driver has value <= threshold, it is the
+            # one we're looking for, and its index is 1 more than the previous midpoint (index is currently 0)
+            # (i guess the condition should be changed to 'if drivers.len == 1' and the return should be changed
+            # to 'return current_best_index + 1' but im paranoid to change it since it works as is)
         return find_threshold_index(math.ceil(drivers[index + 1:].__len__() / 2) - 1, drivers[index + 1:], threshold,
                                     index if index > current_best_index else current_best_index + index + 1, attribute)
 
+# Find the threshold with the least badness for a given attribute. Return a Threshold_Information object
 def find_best_threshold(drivers, attribute):
     lowest_value = drivers[0][attribute]
     highest_value = drivers[-1][attribute]
