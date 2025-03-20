@@ -93,14 +93,14 @@ def find_threshold_index(index, drivers, threshold, current_best_index, attribut
         return find_threshold_index(math.ceil(drivers[index + 1:].__len__() / 2) - 1, drivers[index + 1:], threshold,
                                     index if index > current_best_index else current_best_index + index + 1, attribute)
 
-# Find the threshold with the least badness for a given attribute. Return a Threshold_Information object
+# Find the threshold with the least gain ratio for a given attribute. Return a Threshold_Information object
 def find_best_threshold(drivers, attribute, min_split_size=5):
     lowest_value = drivers[0][attribute]
     highest_value = drivers[-1][attribute]
 
-    least_gain_ratio = sys.maxsize
+    best_gain_ratio = -1
     left_is_aggressive_flag = False  # tracks if the dominant class in the left group of data is aggressive drivers
-    least_gain_threshold = -1
+    best_threshold = -1
 
     combined_node_labels = [driver['INTENT'] for driver in drivers]
 
@@ -115,8 +115,8 @@ def find_best_threshold(drivers, attribute, min_split_size=5):
         if len(left_data) < min_split_size or len(right_data) < min_split_size:
             continue
 
-        left_labels = [drivers['INTENT'] for driver in left_data]
-        right_labels = [drivers['INTENT'] for driver in right_data]
+        left_labels = [driver['INTENT'] for driver in left_data]
+        right_labels = [driver['INTENT'] for driver in right_data]
 
         # calculate if aggressive drivers are the majority group in the left data
         aggressive_drivers_in_left_data = sum(driver['INTENT'] == 2 for driver in left_data)
@@ -124,12 +124,12 @@ def find_best_threshold(drivers, attribute, min_split_size=5):
 
         current_gain_ratio = gain_ratio(combined_node_labels, left_labels, right_labels)
 
-        if current_gain_ratio < least_gain_ratio:
-            least_gain_ratio = current_gain_ratio
+        if current_gain_ratio > best_gain_ratio:
+            best_gain_ratio = current_gain_ratio
             left_is_aggressive_flag = left_is_aggressive
-            least_gain_threshold = threshold
+            best_threshold = threshold
 
-    return Threshold_Information(least_gain_ratio, left_is_aggressive_flag, least_gain_threshold, attribute)
+    return Threshold_Information(best_gain_ratio, left_is_aggressive_flag, best_threshold, attribute)
 
 def gain_ratio(combined_labels, left_labels, right_labels):
     combined_entropy = calculate_entropy(combined_labels)
@@ -219,7 +219,7 @@ def create_tree(drivers, attributes, depth):
         if multi_value_attributes.__contains__(attribute):
             threshold_information = find_best_threshold(sorted_drivers, attribute)
 
-            if best_threshold is None or threshold_information.badness < best_threshold.badness:
+            if best_threshold is None or threshold_information.gain_ratio > best_threshold.gain_ratio:
                 best_threshold = threshold_information
                 best_left_data = list(filter(lambda driver: driver[attribute] <= threshold_information.threshold,
                                              drivers))
@@ -232,10 +232,6 @@ def create_tree(drivers, attributes, depth):
             # calculate if aggressive drivers are the majority group in the left data
             aggressive_drivers_in_left_data = sum(driver['INTENT'] == 2 for driver in left_data)
             left_is_aggressive = aggressive_drivers_in_left_data > len(left_data) - aggressive_drivers_in_left_data
-
-            # track number of false alarms and misses at this threshold
-            false_alarms = 0
-            misses = 0
 
             if left_is_aggressive:  # aggressive drivers are majority group in left data
                 # calculate number of false alarms in left group and misses in right group at this threshold
@@ -262,7 +258,6 @@ def create_tree(drivers, attributes, depth):
     parent_node = Node(best_threshold, left_node, right_node)
 
     return parent_node
-
 
 def main():
     drivers, attributes = read_all_files_in_project()
