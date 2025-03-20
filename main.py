@@ -93,7 +93,7 @@ def find_threshold_index(index, drivers, threshold, current_best_index, attribut
         return find_threshold_index(math.ceil(drivers[index + 1:].__len__() / 2) - 1, drivers[index + 1:], threshold,
                                     index if index > current_best_index else current_best_index + index + 1, attribute)
 
-# Find the threshold with the least gain ratio for a given attribute. Return a Threshold_Information object
+# Find the threshold with the most gain ratio for a given attribute. Return a Threshold_Information object
 def find_best_threshold(drivers, attribute, min_split_size=5):
     lowest_value = drivers[0][attribute]
     highest_value = drivers[-1][attribute]
@@ -182,7 +182,6 @@ classifier()
     file.write(classifer_program)
     file.close()
 
-
 def scatter_all_attributes(drivers, attributes):
     colors = {0: 'blue', 1: 'blue', 2: 'red'}
     for i in range(len(attributes) - 1):
@@ -197,7 +196,6 @@ def scatter_all_attributes(drivers, attributes):
             plt.title(f"{attribute_name} vs {second_attribute_name}")
             plt.savefig(f"{attribute_name}_vs_{second_attribute_name}.png")
             plt.clf()
-
 
 def create_tree(drivers, attributes, depth):
     # TODO: implement stopping condition
@@ -233,19 +231,15 @@ def create_tree(drivers, attributes, depth):
             aggressive_drivers_in_left_data = sum(driver['INTENT'] == 2 for driver in left_data)
             left_is_aggressive = aggressive_drivers_in_left_data > len(left_data) - aggressive_drivers_in_left_data
 
-            if left_is_aggressive:  # aggressive drivers are majority group in left data
-                # calculate number of false alarms in left group and misses in right group at this threshold
-                false_alarms = sum(driver['INTENT'] < 2 for driver in left_data)
-                misses = sum(driver['INTENT'] == 2 for driver in right_data)
-            else:  # aggressive drivers are majority group in right data
-                # calculate number of false alarms in right group and misses in left group at this threshold
-                false_alarms = sum(driver['INTENT'] < 2 for driver in right_data)
-                misses = sum(driver['INTENT'] == 2 for driver in left_data)
+            left_labels = [driver['INTENT'] for driver in left_data]
+            right_labels = [driver['INTENT'] for driver in right_data]
 
-            badness = false_alarms + misses
-            threshold_information = Threshold_Information(badness, left_is_aggressive, 0, attribute)
+            combined_labels = [driver['INTENT'] for driver in drivers] #This might have to be moved outside of the for loop
+            current_gain_ratio = gain_ratio(combined_labels, left_labels, right_labels)
 
-            if best_threshold is None or badness < best_threshold.badness:
+            threshold_information = Threshold_Information(current_gain_ratio, left_is_aggressive, 0, attribute)
+
+            if best_threshold is None or current_gain_ratio > best_threshold.gain_ratio:
                 best_threshold = threshold_information
                 best_left_data = left_data
                 best_right_data = right_data
