@@ -16,11 +16,28 @@ class Threshold_Information:
         self.threshold = threshold
         self.attribute = attribute
 
+    def to_string(self, depth=0):
+        indent = "    " * depth
+        return (f"{indent}Threshold Information:\n"
+                f"  {indent}Left is Aggressive Flag: {self.left_is_aggressive_flag}\n"
+                f"  {indent}Threshold: {self.threshold}\n"
+                f"  {indent}Attribute: {self.attribute}\n")
+
 class Node:
-    def __init__(self, threshold_information, left, right):
+    def __init__(self, threshold_information, left, right, drivers):
         self.threshold_information = threshold_information
         self.left = left
         self.right = right
+        self.drivers = drivers
+    def to_string(self, depth=0):
+        indent = "    " * depth
+        left_str = self.left.to_string(depth + 1) if self.left else f"    {indent}None\n"
+        right_str = self.right.to_string(depth + 1) if self.right else f"    {indent}None\n"
+        return (f"{indent}Node:\n"
+                f"  {indent}{self.threshold_information.to_string(depth)}"
+                f"  {indent}Drivers: {len(self.drivers)}\n"
+                f"  {indent}Left: \n{left_str}"
+                f"  {indent}Right: \n{right_str}")
 
 def read_file(fileName):
     drivers = []
@@ -170,40 +187,53 @@ def classifier():
     for driver in drivers:
     """
 
-    classifer_program += "\n    " + recursive_classifier_program(tree, 0)
+    classifer_program += "\n" + recursive_classifier_program(tree, 0)
 
     file = open("HW_05_Classifier_Estevez_Jose_and_Rigoglioso_Dan.py", "w")
     file.write(classifer_program)
     file.close()
 
+def leaf_node(node, indent):
+    num_aggressive = sum(driver['INTENT'] == 2 for driver in node.drivers)
+    num_safe = sum(driver['INTENT'] < 2 for driver in node.drivers)
+
+    classify_str = f"""
+            {indent}intent = f"{2 if num_aggressive > num_safe else 1}"
+            {indent}print(intent)
+            {indent}classification_file = open("HW_05_Estevez_Rigoglioso_MyClassifications.csv", "a")
+            {indent}classification_file.write(intent)
+            {indent}classification_file.close()
+            """
+
+    return f"{classify_str}\n"
+
 # creates the nested if else statements for the attributes in the decision tree
 def recursive_classifier_program(node, depth=0):
-    indent = "  " * depth
+    indent = "    " * depth
     if node is None:
         return ""
 
     if node.left is None and node.right is None:
-        classify_str = f"""
-        intent = f"{2 if node.threshold_information.left_is_aggressive_flag else 1}"
-        print(intent)
-        classification_file = open("HW_05_Estevez_Rigoglioso_MyClassifications.csv", "a")
-        classification_file.write(intent)
-        classification_file.close()
-        """
+        return leaf_node(node, indent)
 
-        return f"{indent}{classify_str}\n"
-
-    conditional_left_aggressive = (f"drivers[{node.threshold_information.attribute}] <= {node.threshold_information.threshold}")
-    conditional_right_aggressive = (f"drivers[{node.threshold_information.attribute}] > {node.threshold_information.threshold}")
+    conditional_left_aggressive = (f"driver['{node.threshold_information.attribute}'] <= {node.threshold_information.threshold}")
+    conditional_right_aggressive = (f"driver['{node.threshold_information.attribute}'] > {node.threshold_information.threshold}")
 
     left_tree = recursive_classifier_program(node.left, depth + 1)
     right_tree = recursive_classifier_program(node.right, depth + 1) # Do we need to increase the depth both times?
 
+    right_else_string = f"\n        {indent}else:\n{right_tree}"
+    left_else_string = f"\n        {indent}else:\n{left_tree}"
+    left_agg = f"left_is_agg: {node.threshold_information.left_is_aggressive_flag}"
+    left_child: Node = node.left
+    right_child: Node = node.right
+    left_drivers = f"left_amt: {sum(driver[node.threshold_information.attribute] <= node.threshold_information.threshold for driver in node.drivers)}"
+    right_drivers = f"right_amt: {sum(driver[node.threshold_information.attribute] > node.threshold_information.threshold for driver in node.drivers)}"
     recursive_string = ""
     if node.threshold_information.left_is_aggressive_flag:
-        recursive_string = f"{indent}if {conditional_left_aggressive}:\n{left_tree}\n {indent}else:\n{right_tree}"
+        recursive_string = f"        {indent}if {conditional_left_aggressive}:\n{left_tree if left_tree else leaf_node(node, indent)}{right_else_string if right_tree else ''}"
     else:
-        recursive_string = f"{indent}if {conditional_right_aggressive}:\n{right_tree}\n {indent}else:\n{left_tree}"
+        recursive_string = f"        {indent}if {conditional_right_aggressive}:\n{right_tree if right_tree else leaf_node(node, indent)}{left_else_string if left_tree else ''}"
 
     return recursive_string
 
@@ -279,7 +309,7 @@ def create_tree(drivers, attributes, depth):
 
     left_node = create_tree(best_left_data, copied_attributes, depth + 1)
     right_node = create_tree(best_right_data, copied_attributes, depth + 1)
-    parent_node = Node(best_threshold, left_node, right_node)
+    parent_node = Node(best_threshold, left_node, right_node, drivers)
 
     return parent_node
 
@@ -306,6 +336,7 @@ def main():
     drivers = safe_drivers + aggressive_drivers
 
     decision_tree = create_tree(drivers, attributes[:-1], 0)
+    print(decision_tree.to_string(0))
     test = 1
 
     make_classifier(decision_tree)
