@@ -258,7 +258,7 @@ def create_tree(drivers, attributes, depth):
             left_is_aggressive = aggressive_drivers_in_left_data > len(left_data) - aggressive_drivers_in_left_data
 
             if len(left_data) < min_split_size or len(right_data) < min_split_size:
-                continue
+                return None
 
             left_labels = [driver['INTENT'] for driver in left_data]
             right_labels = [driver['INTENT'] for driver in right_data]
@@ -272,6 +272,7 @@ def create_tree(drivers, attributes, depth):
                 best_threshold = threshold_information
                 best_left_data = left_data
                 best_right_data = right_data
+    # If the top level finds speed is the best attribute for example then the inner levels should not use speed as an attribute
 
     attributes.remove(best_threshold.attribute)
     copied_attributes = copy.deepcopy(attributes)
