@@ -3,12 +3,9 @@ import os
 import re
 import numpy as np
 import random
-import sys
 import math
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pandas as pd
-import glob
 
 # Defines a Threshold_Information object which stores the best threshold for a particular attribute, as well as the threshold's
 # badness and whether aggressive drivers are the majority class in the left group of data
@@ -153,8 +150,8 @@ def calculate_entropy(labels):
     probabilities = count_of_each_label / count_of_each_label.sum()
     return -np.sum(probabilities * np.log2(probabilities))
 
-def make_classifier(threshold_information, best_attribute):
-    classifer_program = """
+def make_classifier(tree):
+    classifer_program = f"""
 import os
 import re
 import numpy as np
@@ -166,21 +163,49 @@ def classifier():
     args = parser.parse_args()
 
     drivers = read_file(args.filename)
-    sorted_drivers = drivers
 
-    sorted_drivers = sorted(drivers, key=lambda driver: driver.{attribute})
+    classification_file = open("HW_05_Estevez_Rigoglioso_MyClassifications.csv", "w")
+    classification_file.write("")
+    classification_file.close()
+    for driver in drivers:
+    """
 
-    print("Aggressive drivers: %d" % sum(driver.{attribute} {aggressive_comparator} {threshold} for driver in sorted_drivers))
-    print("Safe drivers: %d" % sum(driver.{attribute} {safe_comparator} {threshold} for driver in sorted_drivers))
+    classifer_program += "\n    " + recursive_classifier_program(tree, 0)
 
-classifier()
-    """.format(attribute=best_attribute, threshold=threshold_information.threshold,
-               aggressive_comparator="<=" if threshold_information.left_is_aggressive_flag else ">",
-               safe_comparator=">" if threshold_information.left_is_aggressive_flag else "<=")
-
-    file = open("HW_05_Classifier_Rigoglioso_Dan.py", "w")
+    file = open("HW_05_Classifier_Estevez_Jose_and_Rigoglioso_Dan.py", "w")
     file.write(classifer_program)
     file.close()
+
+# creates the nested if else statements for the attributes in the decision tree
+def recursive_classifier_program(node, depth=0):
+    indent = "  " * depth
+    if node is None:
+        return ""
+
+    if node.left is None and node.right is None:
+        classify_str = f"""
+        intent = f"{2 if node.threshold_information.left_is_aggressive_flag else 1}"
+        print(intent)
+        classification_file = open("HW_05_Estevez_Rigoglioso_MyClassifications.csv", "a")
+        classification_file.write(intent)
+        classification_file.close()
+        """
+
+        return f"{indent}{classify_str}\n"
+
+    conditional_left_aggressive = (f"drivers[{node.threshold_information.attribute}] <= {node.threshold_information.threshold}")
+    conditional_right_aggressive = (f"drivers[{node.threshold_information.attribute}] > {node.threshold_information.threshold}")
+
+    left_tree = recursive_classifier_program(node.left, depth + 1)
+    right_tree = recursive_classifier_program(node.right, depth + 1) # Do we need to increase the depth both times?
+
+    recursive_string = ""
+    if node.threshold_information.left_is_aggressive_flag:
+        recursive_string = f"{indent}if {conditional_left_aggressive}:\n{left_tree}\n {indent}else:\n{right_tree}"
+    else:
+        recursive_string = f"{indent}if {conditional_right_aggressive}:\n{right_tree}\n {indent}else:\n{left_tree}"
+
+    return recursive_string
 
 def scatter_all_attributes(drivers, attributes):
     colors = {0: 'blue', 1: 'blue', 2: 'red'}
@@ -208,6 +233,7 @@ def create_tree(drivers, attributes, depth):
     best_threshold = None
     best_left_data = []
     best_right_data = []
+    min_split_size = 5
 
     for attribute in attributes:
         sorted_drivers = sorted(drivers, key=lambda single_driver: single_driver[attribute])
@@ -230,6 +256,9 @@ def create_tree(drivers, attributes, depth):
             # calculate if aggressive drivers are the majority group in the left data
             aggressive_drivers_in_left_data = sum(driver['INTENT'] == 2 for driver in left_data)
             left_is_aggressive = aggressive_drivers_in_left_data > len(left_data) - aggressive_drivers_in_left_data
+
+            if len(left_data) < min_split_size or len(right_data) < min_split_size:
+                continue
 
             left_labels = [driver['INTENT'] for driver in left_data]
             right_labels = [driver['INTENT'] for driver in right_data]
@@ -278,7 +307,7 @@ def main():
     decision_tree = create_tree(drivers, attributes[:-1], 0)
     test = 1
 
-    # make_classifier(best_threshold, best_attribute)
+    make_classifier(decision_tree)
 
     # scatter_all_attributes(drivers, attributes)
 
