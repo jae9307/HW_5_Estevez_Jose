@@ -262,16 +262,12 @@ def recursive_classifier_program(node, depth=0):
 
     right_else_string = f"\n        {indent}else:\n{right_tree}"
     left_else_string = f"\n        {indent}else:\n{left_tree}"
-    left_agg = f"left_is_agg: {node.threshold_information.left_is_aggressive_flag}"
-    left_child: Node = node.left
-    right_child: Node = node.right
-    left_drivers = f"left_amt: {sum(driver[node.threshold_information.attribute] <= node.threshold_information.threshold for driver in node.drivers)}"
-    right_drivers = f"right_amt: {sum(driver[node.threshold_information.attribute] > node.threshold_information.threshold for driver in node.drivers)}"
+    else_string = f"\n        {indent}else:\n"
     recursive_string = ""
     if node.threshold_information.left_is_aggressive_flag:
-        recursive_string = f"        {indent}if {conditional_left_aggressive}:\n{left_tree if left_tree else leaf_node(node, indent)}{right_else_string if right_tree else ''}"
+        recursive_string = f"        {indent}if {conditional_left_aggressive}:\n{left_tree if left_tree else leaf_node(node, indent)}{right_else_string if right_tree else else_string + leaf_node(node, indent)}"
     else:
-        recursive_string = f"        {indent}if {conditional_right_aggressive}:\n{right_tree if right_tree else leaf_node(node, indent)}{left_else_string if left_tree else ''}"
+        recursive_string = f"        {indent}if {conditional_right_aggressive}:\n{right_tree if right_tree else leaf_node(node, indent)}{left_else_string if left_tree else else_string + leaf_node(node, indent)}"
 
     return recursive_string
 
