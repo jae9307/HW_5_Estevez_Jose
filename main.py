@@ -109,7 +109,7 @@ def find_threshold_index(index, drivers, threshold, current_best_index, attribut
                                     index if index > current_best_index else current_best_index + index + 1, attribute)
 
 # Find the threshold with the most gain ratio for a given attribute. Return a Threshold_Information object
-def find_best_threshold(drivers, attribute, min_split_size=5):
+def find_best_threshold(drivers, attribute, min_split_size=10):
     lowest_value = drivers[0][attribute]
     highest_value = drivers[-1][attribute]
 
@@ -301,7 +301,7 @@ def create_tree(drivers, attributes, depth):
     best_threshold = None
     best_left_data = []
     best_right_data = []
-    min_split_size = 5
+    min_split_size = 10
 
     for attribute in attributes:
         sorted_drivers = sorted(drivers, key=lambda single_driver: single_driver[attribute])
@@ -353,8 +353,8 @@ def create_tree(drivers, attributes, depth):
 
 def main():
     drivers, attributes = read_all_files_in_project()
-    best_attributes = ['Speed', 'BumperDamage', 'HasGlasses', 'RoofRack',
-                       'SideDents', 'Wears_Hat', 'Brightness', 'NLaneChanges']  # decided using scatter plots
+    best_attributes = ['Speed', 'BumperDamage', 'HasGlasses', 'RoofRack', 'Distracted',
+                       'SideDents', 'Wears_Hat', 'Brightness', 'NLaneChanges', 'BumperStickers']  # decided using scatter plots
 
     safe_drivers = []
     aggressive_drivers = []
