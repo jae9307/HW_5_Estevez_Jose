@@ -59,9 +59,10 @@ def read_file(fileName):
 
             # Create a dictionary for each driver, where the key is the attribute name and
             # the value is the attribute value
-            driver_dictionary = {}
+            driver_dictionary = dict()
             for index in range(len(attributes)):
-                driver_dictionary.update({attributes[index]: int(np.round(float(entries[index])))})
+                attribute_value = int(np.round(float(entries[index])))
+                driver_dictionary.update(dict([(attributes[index], attribute_value)]))
             drivers.append(driver_dictionary)
 
     return drivers, attributes
@@ -174,6 +175,34 @@ import re
 import numpy as np
 import argparse
 
+def read_file(fileName):
+    drivers = []
+    attributes = []
+
+    if os.path.isfile(fileName):
+        file = open(fileName, "r")
+        lines = file.readlines()
+
+        for line in lines:
+            entries = line.split(",")
+
+            # If the line does not consist of numbers, create a list of attributes from the line
+            float_regex = r"^-?\d+\.\d+$"
+            if not re.match(float_regex, entries[0].replace(" ", "")):
+                for word in entries:
+                    attributes.append(word.replace("\\n", ""))
+                continue
+
+            # Create a dictionary for each driver, where the key is the attribute name and
+            # the value is the attribute value
+            driver_dictionary = dict()
+            for index in range(len(attributes) - 1):
+                attribute_value = int(np.round(float(entries[index])))
+                driver_dictionary.update(dict([(attributes[index], attribute_value)]))
+            drivers.append(driver_dictionary)
+
+    return drivers
+
 def classifier():
     parser = argparse.ArgumentParser(prog='classifier', description='Classifies drivers as safe or aggressive')
     parser.add_argument('filename')
@@ -187,10 +216,19 @@ def classifier():
     for driver in drivers:
     """
 
+    main_string = """
+def main():
+    classifier()
+
+if __name__ == '__main__':
+    main()
+    """
+
     classifer_program += "\n" + recursive_classifier_program(tree, 0)
 
     file = open("HW_05_Classifier_Estevez_Jose_and_Rigoglioso_Dan.py", "w")
     file.write(classifer_program)
+    file.write("\n" + main_string)
     file.close()
 
 def leaf_node(node, indent):
@@ -201,7 +239,7 @@ def leaf_node(node, indent):
             {indent}intent = f"{2 if num_aggressive > num_safe else 1}"
             {indent}print(intent)
             {indent}classification_file = open("HW_05_Estevez_Rigoglioso_MyClassifications.csv", "a")
-            {indent}classification_file.write(intent)
+            {indent}classification_file.write(str(intent) + "\\n")
             {indent}classification_file.close()
             """
 
