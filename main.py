@@ -61,7 +61,7 @@ def read_file(fileName):
             # the value is the attribute value
             driver_dictionary = dict()
             for index in range(len(attributes)):
-                attribute_value = int(np.round(float(entries[index])))
+                attribute_value = int(np.round(float(entries[index]), 1))
                 driver_dictionary.update(dict([(attributes[index], attribute_value)]))
             drivers.append(driver_dictionary)
 
@@ -197,7 +197,7 @@ def read_file(fileName):
             # the value is the attribute value
             driver_dictionary = dict()
             for index in range(len(attributes) - 1):
-                attribute_value = int(np.round(float(entries[index])))
+                attribute_value = int(np.round(float(entries[index]), 1))
                 driver_dictionary.update(dict([(attributes[index], attribute_value)]))
             drivers.append(driver_dictionary)
 
